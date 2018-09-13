@@ -13,7 +13,8 @@ void ftp_mdtm(ftp_t *ftp, char *path) {
 	char *line = NULL;
 	char act[MAX_STR];
 
-	fprintf(ftp->FD, "MDTM %s\r\n", path);
+	sprintf(ftp->FD, "MDTM %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 	if ( ftp->code == 550 )
@@ -32,7 +33,9 @@ void ftp_mdtm(ftp_t *ftp, char *path) {
 void ftp_cwd(ftp_t *ftp, char *path) {
 	char *line = NULL;
 
-	fprintf(ftp->FD, "CWD %s\r\n", path);
+	sprintf(ftp->FD, "CWD %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
+
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 	if ( ftp->code == 550 )
@@ -43,7 +46,9 @@ void ftp_cwd(ftp_t *ftp, char *path) {
 void ftp_delete(ftp_t *ftp, char *path) {
 	char *line = NULL;
 
-	fprintf(ftp->FD, "DELE %s\r\n", path);
+	sprintf(ftp->FD, "DELE %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
+
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 	if ( ftp->code == 250 )
@@ -78,12 +83,15 @@ void ftp_upload_single(ftp_t *ftp, char *path) {
 	fseek(fp, 0L, SEEK_SET);
 
 	ftp->dataport = ftp_getdataport(ftp);
-	fprintf(ftp->FD, "TYPE I\r\n");
+	sprintf(ftp->FD, "TYPE I\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
+
 	line = ftp_getline(ftp);
 	if ( atoi(line) == 500 )
 		die("Failed to set TYPE.");
 
-	fprintf(ftp->FD, "STOR %s\r\n", path);
+	sprintf(ftp->FD, "STOR %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 
 	/* SIGALRM */
 	line = ftp_getline(ftp);
@@ -124,6 +132,8 @@ void ftp_download_single(ftp_t *ftp, char *path) {
 	char *line = NULL;
 	FILE *data;
 	FILE *fp;
+
+	int fd;
 	char buffer[MAX_STR];
 	char *filename = NULL;
 	long int dsize = 0;
@@ -148,15 +158,17 @@ void ftp_download_single(ftp_t *ftp, char *path) {
 
 	fsize = (int)ftp_size(ftp, path);
 	ftp->dataport = ftp_getdataport(ftp);
-	fprintf(ftp->FD, "TYPE I\r\n");
+	sprintf(ftp->FD, "TYPE I\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	if ( atoi(line) == 500 )
 		die("Failed to set TYPE.");
-	fprintf(ftp->FD, "RETR %s\r\n", path);
+	sprintf(ftp->FD, "RETR %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 
 	/* SIGALRM */
 	line = ftp_getline(ftp);
-	data = tcp_connect2(ip, ftp->dataport, "r");
+	fd = tcp_connect2(ip, ftp->dataport, "r");
 		
 	if (( fp = fopen(filename, "w")) == NULL )
 		die("Cannot create %s.", filename);
@@ -203,7 +215,8 @@ char * ftp_pwd(ftp_t *ftp) {
 	char *line = NULL;
 	static char pwd[MAX_STR];
 
-	fprintf(ftp->FD, "PWD\r\n");
+	sprintf(ftp->FD, "PWD\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	ppwd = strstr(line, "\"");
 	sscanf(ppwd, "\"%s\" %[^\n]s", pwd, line);
@@ -217,7 +230,8 @@ int ftp_size(ftp_t *ftp, char *path) {
 	char *line = NULL;
 	int file_size = 0;
 		
-	fprintf(ftp->FD, "SIZE %s\r\n", path);
+	sprintf(ftp->FD, "SIZE %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	if ( atoi(line) != 213 )
 		die("Failed to get \'%s\' size.", path);
@@ -231,21 +245,24 @@ void ftp_cat(ftp_t *ftp, char *path) {
 	char *line = NULL;
 	FILE *data;
 	char buffer[MAX_STR];
-
+	int fd;
 	ftp->dataport = ftp_getdataport(ftp);
-	fprintf(ftp->FD, "TYPE I\r\n");
+	sprintf(ftp->FD, "TYPE I\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	if ( atoi(line) == 500 )
 		die("Failed to set TYPE.");
-	fprintf(ftp->FD, "RETR %s\r\n", path);
+	sprintf(ftp->FD, "RETR %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	/* SIGALRM */
 	ftp_getline(ftp);
 
-	data = tcp_connect2(ip, ftp->dataport, "r");
-	while(( fgets(buffer, sizeof(buffer), data)) != NULL ) {
+	fd = tcp_connect2(ip, ftp->dataport, "r");
+	
+	while( recv(fd, buffer, sizeof buffer, 0) > 0 ) {
 		printf("%s", buffer);
 	}
-	fclose(data);
+//	fclose(data);
 	close(dfd);
 }
 
@@ -253,7 +270,8 @@ void ftp_cat(ftp_t *ftp, char *path) {
 void ftp_remove(ftp_t *ftp, char *path) {
 	char *line = NULL;
 		
-	fprintf(ftp->FD, "DELE %s\r\n", path);
+	sprintf(ftp->FD, "DELE %s\r\n", path);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 	if ( ftp->code == 250 )
@@ -267,34 +285,40 @@ void ftp_remove(ftp_t *ftp, char *path) {
  * 1 - NLST
  * 2 - LIST */
 void ftp_list(ftp_t *ftp, char *path, int opt) {
-	FILE *data;
+	char *data;
+	int fd;
 	char buffer[MAX_STR];
+	int ret = 0;
 
 	ftp->dataport = ftp_getdataport(ftp);
-		
+//	ftp->dataport = 20;	
 	switch(opt) {
 		case 1:
-			fprintf(ftp->FD, "LIST %s\r\n", path);
+			sprintf(ftp->FD, "LIST %s\r\n", path);
+			send(ftp->fd, ftp->FD, strlen(ftp->FD), 0);
+			break;
 		case 2:
-			fprintf(ftp->FD, "NLST %s\r\n", path);
+			sprintf(ftp->FD, "NLST %s\r\n", path);
+			send(ftp->fd, ftp->FD, strlen(ftp->FD), 0);
 	}
 	/* SIGALRM */
-	ftp_getline(ftp);
+	data = ftp_getline(ftp);
 
-	data = tcp_connect2(ip, ftp->dataport, "r");
+	fd = tcp_connect2(ip, ftp->dataport, "r");
 
-	while ( fgets(buffer, sizeof(buffer), data) != NULL ) {
+	while ( (ret = recv(fd, buffer, sizeof buffer, 0)) > 0 ) {
+		printf("%.*s", ret, buffer);
 		/* dir*/
-		if ( buffer[0] == 0x64 )
-			print(3, "%s%s%s", BLUE,buffer, END);
-		/* symlink*/
-		if ( buffer[0] == 0x6c )
-			print(3, "%s%s%s", CYN,buffer,END);
-		/* File */
-		else if ( buffer[0] == 0x2d )
-			print(3, "%s%s%s", WHT,buffer, END);
+		//if ( buffer[0] == 0x64 )
+		//	printf("%s%s%s", BLUE,buffer, END);
+		///* symlink*/
+		//if ( buffer[0] == 0x6c )
+		//	print(3, "%s%s%s", CYN,buffer,END);
+		///* File */
+		//else if ( buffer[0] == 0x2d )
+		//	print(3, "%s%s%s", WHT,buffer, END);
 	}
-	fclose(data);
+
 	close(dfd);
 	/* No need to close fd the SIGALRM do it */
 }
@@ -303,29 +327,38 @@ void ftp_list(ftp_t *ftp, char *path, int opt) {
 int ftp_getdataport(ftp_t *ftp) {
 	char *line = NULL;
 	int p1 = 0;
+	char* p1_s = NULL;
 	int p2 = 0;
+	char* p2_s = NULL;
 	int p3_secure = 0;
 	char *act = NULL;
+	char * tmp = NULL;
+	int i = 0;
 
-	fprintf(ftp->FD, "PASV\r\n");
+	sprintf(ftp->FD, "PASV\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
+
 	line = ftp_getline(ftp);
-
-	act = strrchr(line, ',') -5;
+	tmp = strrchr(line, ',');
+//	tmp = line;
+	act = tmp - 5;
 	/* p3_secure is for secureing the data port,
 	 * in case it will be 3 digits */
-	sscanf(act, "%d,%d,%d)", &p3_secure, &p1, &p2);
+	sscanf(act, "%d,%d,%d).", &p3_secure, &p1, &p2);
 	
 	#ifdef DEBUG
 	print(2, "Dataport: %d\n", (p1*256+p2));
 	#endif
 	return (p1*256+p2);
+	//return 20;
 }
 
 /* Will try to login */
 int ftp_login(ftp_t *ftp) {
 	char *line = NULL;
 
-	fprintf(ftp->FD, "USER %s\r\n", ftp->user);
+	sprintf(ftp->FD, "USER %s\r\n", ftp->user);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 
@@ -337,7 +370,8 @@ int ftp_login(ftp_t *ftp) {
 		#endif
 		return ftp->code;
 	}
-	fprintf(ftp->FD, "PASS %s\r\n", ftp->password);
+	sprintf(ftp->FD, "PASS %s\r\n", ftp->password);
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	ftp->code = atoi(line);
 
@@ -368,7 +402,8 @@ char * ftp_getline(ftp_t *ftp) {
 	//signal(SIGALRM, signal_handler);
 	//alarm(ftp->alarm_sec);
 
-	while (( fgets(line, sizeof(line), ftp->FD)) != NULL ) {
+	
+	while (( recv(fd, line, sizeof line, 0)) > 0 ) {
     	/* Avoid the comments when connecting to server */
 		if (strtol(line, &s, 10) != 0 && s != NULL) {
 			if (isspace(*s)) {
@@ -386,8 +421,8 @@ char * ftp_getline(ftp_t *ftp) {
 /* handle TCP connection */
 void ftp_mkcon(ftp_t *ftp) {
 	/* Make the connection */
-	ftp->FD = tcp_connect(ftp->server, ftp->port);
-	if ( !ftp->FD) 
+	ftp->fd = tcp_connect(ftp->server, ftp->port);
+	if ( !ftp->fd) 
 		die("Connection failed.");
 	ftp_banner(ftp);
 	ftp_login(ftp);
@@ -400,11 +435,12 @@ void ftp_mkcon(ftp_t *ftp) {
 
 /* close connection */
 void ftp_close(ftp_t *ftp) {
-	fprintf(ftp->FD, "QUIT\r\n");
+	sprintf(ftp->FD, "QUIT\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	#ifdef DEBUG
 		print(2, "%s", ftp_getline(ftp));
 	#endif
-	fclose(ftp->FD);
+	close(ftp->fd);
 	ftp->logged = 0;
 }
 

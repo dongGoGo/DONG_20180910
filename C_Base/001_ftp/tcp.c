@@ -3,7 +3,7 @@
 #include "tcp.h"
 
 /* Connect to TCP/IP socket */
-FILE * tcp_connect(char *server, char *port) {
+int tcp_connect(char *server, char *port) {
 	struct addrinfo ai, *srv = NULL, *p = NULL;
 
 	memset(&ai, 0, sizeof(struct addrinfo));
@@ -34,12 +34,13 @@ FILE * tcp_connect(char *server, char *port) {
 	freeaddrinfo(srv);
 
 	/* call to fdopen to return FILE */
-	return (fdopen(fd, FD_MODE));
+//	return (fdopen(fd, FD_MODE));
+	return fd;
 }
 
 
 /* IPv6/IPv4 */
-FILE * tcp_connect2(char *server, int port, char *mode) {
+int tcp_connect2(char *server, int port, char *mode) {
 	struct addrinfo ai, *srv = NULL, *p = NULL;
 	char po[MAX_STR];
 		
@@ -73,7 +74,8 @@ FILE * tcp_connect2(char *server, int port, char *mode) {
 	freeaddrinfo(srv);
 
 	/* call to fdopen to return FILE */
-	return (fdopen(fd, mode));
+	//return (fdopen(fd, mode));
+	return fd;
 }
 
 

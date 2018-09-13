@@ -63,8 +63,10 @@ void skod_parse_stat(skod_t *skod, ftp_t *ftp) {
 	const char **p = NULL;
 
 	if ( ftp->logged ) {
-		fprintf(ftp->FD, "STAT\r\n");
-		while (( fgets(buffer, sizeof(buffer), ftp->FD)) != NULL ) {
+		sprintf(ftp->FD, "STAT\r\n");
+		send(fd, ftp->FD, strlen(ftp->FD), 0);
+
+		while (( recv(ftp->fd, buffer, sizeof buffer, 0)) > 0 ) {
 			for ( p = ftp_prod; *p;p++ ) {
 				if ( strstr(buffer, *p))
 					print(3, "%s", buffer);
@@ -76,7 +78,8 @@ void skod_parse_stat(skod_t *skod, ftp_t *ftp) {
 	ftp_mkcon(ftp);
 
 	/* Parse OS */
-	fprintf(ftp->FD, "SYST\r\n");
+	sprintf(ftp->FD, "SYST\r\n");
+	send(fd, ftp->FD, strlen(ftp->FD), 0);
 	line = ftp_getline(ftp);
 	if (( strstr(line, "UNIX")))
 		skod->os = SKOD_OS_NIX;
@@ -119,7 +122,8 @@ char * skod_hc_fingerprint(ftp_t *ftp) {
 	 * This way we will get the fingerprint 100% */
 	for ( ptr = ftp_commands; *ptr; ptr++ ) {
 		ftp_mkcon(ftp);
-		fprintf(ftp->FD, "%s\r\n", *ptr);
+		sprintf(ftp->FD, "%s\r\n", *ptr);
+		send(fd, ftp->FD, strlen(ftp->FD), 0);
 		line = ftp_getline(ftp);
 		sum = skod_checksum(line);
 		sprintf(ssum, "%lu", sum);
@@ -290,7 +294,7 @@ int main(int argc, char **argv) {
 	ftp.server = skod.server;
 	ftp.port = skod.port;
 	ftp.alarm_sec = 1; /* High risk */
-
+	ftp.FD = (char*)malloc(512);
 	ftp_mkcon(&ftp);
 
 	/* --dest, -e*/
@@ -331,7 +335,7 @@ int main(int argc, char **argv) {
 			skod_scan(&skod, &ftp);
 			break;
 	}
-
+	system("pause");
 	ftp_close(&ftp);
 	return 0;
 }
